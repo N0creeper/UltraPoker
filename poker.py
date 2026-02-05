@@ -9,7 +9,7 @@ BIG_BLIND = 10
 
 jetons = [1000, 1000, 1000, 1000, 1000, 1000]
 ia_players = [0, 1, 2, 3, 4]
-bouton = 5  
+bouton = 5
 
 
 def new_deck():
@@ -41,46 +41,53 @@ def position_joueur(i, bouton):
     return positions[index_position]
 
 
-class PotManager:
-    def __init__(self, n_players):
-        self.n = n_players
-        self.contributions = [0] * n_players
-        self.folded = [False] * n_players
-        self.all_in = [False] * n_players
+def init_pot_manager(n_players):
+    return {
+        "n": n_players,
+        "contributions": [0] * n_players,
+        "folded": [False] * n_players,
+        "all_in": [False] * n_players,
+    }
 
-    def add_bet(self, player, amount):
-        self.contributions[player] += amount
 
-    def fold(self, player):
-        self.folded[player] = True
+def pot_add_bet(pot_manager, player, amount):
+    pot_manager["contributions"][player] += amount
 
-    def set_all_in(self, player):
-        self.all_in[player] = True
 
-    def build_side_pots(self):
-        contrib = self.contributions[:]
-        pots = []
+def pot_fold(pot_manager, player):
+    pot_manager["folded"][player] = True
 
-        while True:
-            active = [c for i, c in enumerate(contrib) if c > 0 and not self.folded[i]]
-            if not active:
-                break
 
-            m = min(active)
-            pot_amount = 0
-            eligible = []
+def pot_set_all_in(pot_manager, player):
+    pot_manager["all_in"][player] = True
 
-            for i in range(self.n):
-                if contrib[i] > 0:
-                    take = min(contrib[i], m)
-                    pot_amount += take
-                    contrib[i] -= take
-                    if not self.folded[i]:
-                        eligible.append(i)
 
-            pots.append({"amount": pot_amount, "eligible": eligible})
+def pot_build_side_pots(pot_manager):
+    n = pot_manager["n"]
+    contrib = pot_manager["contributions"][:]
+    folded = pot_manager["folded"]
+    pots = []
 
-        return pots
+    while True:
+        active = [c for i, c in enumerate(contrib) if c > 0 and not folded[i]]
+        if not active:
+            break
+
+        m = min(active)
+        pot_amount = 0
+        eligible = []
+
+        for i in range(n):
+            if contrib[i] > 0:
+                take = min(contrib[i], m)
+                pot_amount += take
+                contrib[i] -= take
+                if not folded[i]:
+                    eligible.append(i)
+
+        pots.append({"amount": pot_amount, "eligible": eligible})
+
+    return pots
 
 
 def tour_encheres(mains, jetons, pot_manager, board, bouton):
@@ -94,38 +101,43 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
     mises = [0] * n
     big = 0
     current = start
-
     acted = [False] * n
 
     while True:
-        actifs = [i for i in range(n) if not pot_manager.folded[i]]
+        folded = pot_manager["folded"]
+        all_in = pot_manager["all_in"]
+        contributions = pot_manager["contributions"]
+
+        actifs = [i for i in range(n) if not folded[i]]
 
         if len(actifs) == 1:
             return True, mises
 
         if all(
-            pot_manager.folded[i]
-            or pot_manager.all_in[i]
-            or (acted[i] and mises[i] == big)
-            for i in range(n)
+            folded[i] or all_in[i] or (acted[i] and mises[i] == big) for i in range(n)
         ):
             return False, mises
 
-        if pot_manager.folded[current] or pot_manager.all_in[current]:
+        if folded[current] or all_in[current]:
             current = (current + 1) % n
             continue
 
         to_call = big - mises[current]
 
-        if len(board) == 0 and sum(pot_manager.contributions) == SMALL_BLIND + BIG_BLIND \
-                and position_joueur(current, bouton) not in ["SB", "BB"]:
+        if (
+            len(board) == 0
+            and sum(contributions) == SMALL_BLIND + BIG_BLIND
+            and position_joueur(current, bouton) not in ["SB", "BB"]
+        ):
             to_call = 0
 
         print("\n==============================")
-        print(f"Joueur {current} ({'IA' if current in ia_players else 'HUMAIN'}) - Position {position_joueur(current, bouton)}")
+        print(
+            f"Joueur {current} ({'IA' if current in ia_players else 'HUMAIN'}) - Position {position_joueur(current, bouton)}"
+        )
         print("Main :", mains[current])
         print("Board :", board)
-        print("Pot courant :", sum(pot_manager.contributions))
+        print("Pot courant :", sum(contributions))
         print("Mise actuelle :", mises[current])
         print("Doit payer :", to_call)
         print("Jetons restants :", jetons[current])
@@ -137,8 +149,8 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
                 board=board,
                 jetons=jetons[current],
                 mise_a_suivre=to_call,
-                pot=sum(pot_manager.contributions),
-                position=position_joueur(current, bouton)
+                pot=sum(contributions),
+                position=position_joueur(current, bouton),
             )
             print("Action IA :", action)
         else:
@@ -148,7 +160,7 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
 
         if action == "f":
             print(f"Joueur {current} FOLD")
-            pot_manager.fold(current)
+            pot_fold(pot_manager, current)
             current = (current + 1) % n
             continue
 
@@ -157,9 +169,9 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
                 call_amount = min(jetons[current], to_call)
                 mises[current] += call_amount
                 jetons[current] -= call_amount
-                pot_manager.add_bet(current, call_amount)
+                pot_add_bet(pot_manager, current, call_amount)
                 if jetons[current] == 0:
-                    pot_manager.set_all_in(current)
+                    pot_set_all_in(pot_manager, current)
                     print(f"Joueur {current} ALL-IN (call)")
                 else:
                     print(f"Joueur {current} CALL ({mises[current]})")
@@ -182,10 +194,10 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
 
         mises[current] += raise_amount
         jetons[current] -= raise_amount
-        pot_manager.add_bet(current, raise_amount)
+        pot_add_bet(pot_manager, current, raise_amount)
 
         if jetons[current] == 0:
-            pot_manager.set_all_in(current)
+            pot_set_all_in(pot_manager, current)
             print(f"Joueur {current} ALL-IN à {mises[current]}")
         else:
             if to_call == 0:
@@ -196,18 +208,19 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
         if mises[current] > big:
             big = mises[current]
             for i in range(n):
-                if i != current and not pot_manager.folded[i] and not pot_manager.all_in[i]:
+                if i != current and not folded[i] and not all_in[i]:
                     acted[i] = False
 
         current = (current + 1) % n
 
 
-
 def showdown(mains, board, pot_manager):
-    pots = pot_manager.build_side_pots()
+    pots = pot_build_side_pots(pot_manager)
+    folded = pot_manager["folded"]
+
     results = {}
     for i, main in enumerate(mains):
-        if not pot_manager.folded[i]:
+        if not folded[i]:
             results[i] = algorythme.meilleure_main(main + board)
 
     gains = [0] * len(mains)
@@ -248,25 +261,27 @@ def game():
     print("=== Début de la main ===")
     for i in range(n):
         statut = "IA" if i in ia_players else "HUMAIN"
-        print(f"Joueur {i} ({statut}) -> Position: {positions[i]} ; Jetons: {jetons[i]}")
+        print(
+            f"Joueur {i} ({statut}) -> Position: {positions[i]} ; Jetons: {jetons[i]}"
+        )
     print("========================")
 
     for i in range(n):
         mains[i].append(tirer_carte(deck))
         mains[i].append(tirer_carte(deck))
 
-    pm = PotManager(n)
+    pm = init_pot_manager(n)
 
     for i in range(n):
         pos = position_joueur(i, bouton)
         if pos == "SB":
             mise = min(jetons[i], SMALL_BLIND)
             jetons[i] -= mise
-            pm.add_bet(i, mise)
+            pot_add_bet(pm, i, mise)
         elif pos == "BB":
             mise = min(jetons[i], BIG_BLIND)
             jetons[i] -= mise
-            pm.add_bet(i, mise)
+            pot_add_bet(pm, i, mise)
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton)
     if fini:
@@ -302,7 +317,6 @@ def game():
         afficher_fin(mains, board, gains)
         bouton = (bouton + 1) % n
         return
-
 
     _ = tirer_carte(deck)
     board.append(tirer_carte(deck))

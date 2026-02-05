@@ -1,5 +1,6 @@
 from itertools import combinations
 
+
 def cartes_to_listes(liste):
     clr = []
     nmbr = []
@@ -147,5 +148,3 @@ def meilleure_main(cartes):
             best_score = s
 
     return best_score
-
-
