@@ -2,6 +2,10 @@ from itertools import combinations
 
 
 def cartes_to_listes(liste):
+    """
+    Sépare une liste de cartes en deux listes distinctes :
+    une liste de nombres et une liste de couleurs.
+    """
     clr = []
     nmbr = []
     for carte in liste:
@@ -11,6 +15,9 @@ def cartes_to_listes(liste):
 
 
 def occurence(n):
+    """
+    Calcule l'occurrence de chaque nombre dans une liste.
+    """
     r = {}
     for i in n:
         if i in r:
@@ -21,6 +28,9 @@ def occurence(n):
 
 
 def check_P_DP_B_F_C(o):
+    """
+    Vérifie la présence de paires, double paires, brelans, fulls ou carrés dans un dictionnaire d'occurrences.
+    """
     n2 = 0
     v2 = []
     n3 = 0
@@ -52,6 +62,7 @@ def check_P_DP_B_F_C(o):
 
 
 def check_flush(c):
+    """ """
     temp = True
     for i in range(len(c)):
         if c[i] != c[0]:
@@ -60,6 +71,9 @@ def check_flush(c):
 
 
 def check_straight(n):
+    """
+    Vérifie si les cartes forment une suite (straight).
+    """
     temp = sorted(n)
     normal = True
     for i in range(len(temp) - 1):
@@ -82,6 +96,9 @@ def check_straight(n):
 
 
 def algorythme5c(carte):
+    """
+    Analyse une main de 5 cartes pour déterminer les combinaisons de poker.
+    """
     e = cartes_to_listes(carte)
     couleurs = e[1]
     nombres = e[0]
@@ -106,6 +123,9 @@ def algorythme5c(carte):
 
 
 def score(car):
+    """
+    Attribue un score à une main de 5 cartes en fonction de sa combinaison de poker.
+    """
     d = algorythme5c(car)
     comb = d["combinaison"]
     valeurs = sorted(d["nombres"], reverse=True)
@@ -140,6 +160,9 @@ def score(car):
 
 
 def meilleure_main(cartes):
+    """
+    Détermine la meilleure main de 5 cartes possible à partir d'une liste de cartes.
+    """
     best_score = None
 
     for combo in combinations(cartes, 5):
