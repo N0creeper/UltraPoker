@@ -398,21 +398,21 @@ def eval_preflop(main, position, mise_a_suivre, jetons, pot):
     if mise_a_suivre == 0 and position in RANGES["OPEN"]:
         if notation in RANGES["OPEN"][position]:
             return 25
-        return "f"
+        return "a"
 
     if position in RANGES["CALL"]:
         for vilain_pos in RANGES["CALL"][position]:
             if notation in RANGES["CALL"][position][vilain_pos]:
                 if mise_a_suivre <= 0.25 * jetons:
-                    return "c"
-                return "f"
+                    return "s"
+                return "a"
 
     if position == "BB":
         for vilain_pos in RANGES["BB_vs_OPEN"]:
             if notation in RANGES["BB_vs_OPEN"][vilain_pos]:
                 if mise_a_suivre <= 0.20 * jetons:
-                    return "c"
-                return "f"
+                    return "s"
+                return "a"
 
     if position in RANGES["THREE_BET"]:
         for vilain_pos in RANGES["THREE_BET"][position]:
@@ -421,7 +421,7 @@ def eval_preflop(main, position, mise_a_suivre, jetons, pot):
             if notation in RANGES["THREE_BET"][position][vilain_pos]["bluff"]:
                 return max(mise_a_suivre * 3, mise_a_suivre + 20)
 
-    return "f"
+    return "a"
 
 
 def has_draw(main, board):
@@ -467,15 +467,15 @@ def postflop_action(main, board, jetons, mise_a_suivre, pot, position, nb_joueur
     if strength == "strong":
         return "raise_small" if mise_a_suivre else "bet_medium"
     if strength == "medium":
-        return "c" if mise_a_suivre <= pot * 0.25 else "f"
+        return "s" if mise_a_suivre <= pot * 0.25 else "a"
     if strength == "draw":
-        return "c" if mise_a_suivre <= pot * 0.3 else "f"
+        return "s" if mise_a_suivre <= pot * 0.3 else "a"
     if strength == "weak":
-        return "c" if mise_a_suivre <= pot * 0.15 else "f"
+        return "s" if mise_a_suivre <= pot * 0.15 else "a"
     if strength == "air":
-        return "bet_small" if mise_a_suivre == 0 else "f"
+        return "bet_small" if mise_a_suivre == 0 else "a"
 
-    return "c"
+    return "s"
 
 
 def decision(main, board, jetons, mise_a_suivre, pot, position):
@@ -484,20 +484,20 @@ def decision(main, board, jetons, mise_a_suivre, pot, position):
     if len(board) == 0:
         action = eval_preflop(main, position, mise_a_suivre, jetons, pot)
 
-        if action == "f":
-            return "f"
-        if action == "c":
-            return "c"
+        if action == "a":
+            return "a"
+        if action == "s":
+            return "s"
         if isinstance(action, int):
             return min(jetons, max(action, mise_a_suivre + 1))
-        return "c"
+        return "s"
 
     action = postflop_action(main, board, jetons, mise_a_suivre, pot, position, 6)
 
-    if action == "f":
-        return "f"
-    if action == "c":
-        return "c"
+    if action == "a":
+        return "a"
+    if action == "s":
+        return "s"
     if action == "bet_small":
         return min(jetons, pot // 3)
     if action == "bet_medium":
@@ -508,4 +508,4 @@ def decision(main, board, jetons, mise_a_suivre, pot, position):
         return min(jetons, mise_a_suivre * 2)
     if action == "raise_big":
         return min(jetons, mise_a_suivre * 3)
-    return "c"
+    return "s"

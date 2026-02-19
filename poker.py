@@ -3,55 +3,61 @@ import sys
 import time
 import algorythme
 import ia
+import graphique
+import pygame
 
-SMALL_BLIND = 5
-BIG_BLIND = 10
 
-INITIAL_CHIPS = 1000
-jetons = [INITIAL_CHIPS] * 6
+SMALL_BLIND_BASE = 5
+BIG_BLIND_BASE = 10
+
+blind_multiplier = 1
+round_number = 1
+
+jetons = [1000] * 6
 ia_players = {0, 1, 2, 3, 4}
 bouton = 5
 
+ecran = graphique.creer_fenetre()
+clock = pygame.time.Clock()
+
+def nom_main(score_tuple):
+    """Retourne le nom textuel d'une main à partir du tuple de score."""
+    rank = score_tuple[0]
+    noms = {
+        1: "Hauteur",
+        2: "Paire",
+        3: "Double Paire",
+        4: "Brelan",
+        5: "Suite",
+        6: "Couleur",
+        7: "Full",
+        8: "Carré",
+        9: "Quinte Flush",
+    }
+    return noms.get(rank, "Main inconnue")
+
 
 def new_deck():
-    """Crée un nouveau jeu de cartes."""
+    """Crée un nouveau jeu de 52 cartes au format 'VVC'."""
     couleurs = ["C", "D", "P", "T"]
-    valeurs = [
-        "01",
-        "02",
-        "03",
-        "04",
-        "05",
-        "06",
-        "07",
-        "08",
-        "09",
-        "10",
-        "11",
-        "12",
-        "13",
-    ]
-    deck = [valeur + couleur for valeur in valeurs for couleur in couleurs]
-    return deck
+    valeurs = ["01","02","03","04","05","06","07","08","09","10","11","12","13"]
+    return [v + c for v in valeurs for c in couleurs]
 
 
 def tirer_carte(deck):
-    """Tire une carte aléatoire du jeu."""
-    if not deck:
-        return None
+    """Tire aléatoirement une carte du paquet et la retire."""
     i = random.randrange(len(deck))
     return deck.pop(i)
 
 
 def position_joueur(i, bouton, n_players=6):
-    """Détermine la position du joueur en fonction de l'index et du bouton."""
+    """Calcule la position d'un joueur en fonction du bouton."""
     positions = ["BTN", "SB", "BB", "UTG", "MP", "CO"]
-    index_position = (i - bouton) % n_players
-    return positions[index_position]
+    return positions[(i - bouton) % n_players]
 
 
 def init_pot_manager(n_players):
-    """Initialise le gestionnaire de pot."""
+    """Initialise le gestionnaire de pot pour n joueurs."""
     return {
         "n": n_players,
         "contributions": [0] * n_players,
@@ -60,26 +66,26 @@ def init_pot_manager(n_players):
     }
 
 
-def pot_add_bet(pot_manager, player, amount):
-    """Ajoute une mise au pot pour un joueur."""
-    pot_manager["contributions"][player] += amount
+def pot_add_bet(pm, player, amount):
+    """Ajoute une mise au pot pour un joueur donné."""
+    pm["contributions"][player] += amount
 
 
-def pot_fold(pot_manager, player):
-    """Indique qu'un joueur s'est couché."""
-    pot_manager["folded"][player] = True
+def pot_fold(pm, player):
+    """Marque un joueur comme ayant foldé dans le pot manager."""
+    pm["folded"][player] = True
 
 
-def pot_set_all_in(pot_manager, player):
-    """Indique qu'un joueur est all-in."""
-    pot_manager["all_in"][player] = True
+def pot_set_all_in(pm, player):
+    """Marque un joueur comme all-in dans le pot manager."""
+    pm["all_in"][player] = True
 
 
-def pot_build_side_pots(pot_manager):
-    """Construit les pots secondaires."""
-    n = pot_manager["n"]
-    contrib = pot_manager["contributions"][:]
-    folded = pot_manager["folded"]
+def pot_build_side_pots(pm):
+    """Construit la liste des side-pots à partir des contributions."""
+    n = pm["n"]
+    contrib = pm["contributions"][:]
+    folded = pm["folded"]
     pots = []
 
     while True:
@@ -104,71 +110,119 @@ def pot_build_side_pots(pot_manager):
     return pots
 
 
-def afficher_action(message):
-    """
-    Affiche la désision du joueur/ia
-    """
-    print(message)
-    time.sleep(5)
+# ---------------------------------------------------------
+# SHOWDOWN VISUEL
+# ---------------------------------------------------------
+def afficher_showdown(mains, board, pm):
+    """Affiche le showdown visuel et montre les forces des mains."""
+    graphique.showdown_mode = True
+
+    for i in range(6):
+        if not pm["folded"][i] and jetons[i] > 0:
+            score = algorythme.meilleure_main(mains[i] + board)
+            graphique.hand_strengths[i] = nom_main(score)
+
+    graphique.dessiner_table(ecran)
+    graphique.dessiner_joueurs(ecran, jetons)
+    graphique.afficher_board(ecran, board)
+    graphique.afficher_pot(ecran, sum(pm["contributions"]))
+    graphique.afficher_round(ecran, round_number)
+
+    for i in range(6):
+        if not pm["folded"][i] and jetons[i] > 0:
+            x, y = graphique.PLAYER_POS[i]
+            graphique.afficher_main(ecran, mains[i], x, y)
+            graphique.afficher_force_main(ecran, i)
+
+    graphique.rafraichir(ecran)
+    pygame.time.wait(2500)
+
+    graphique.showdown_mode = False
+    graphique.hand_strengths.clear()
 
 
-def tour_encheres(mains, jetons, pot_manager, board, bouton):
-    """
-    Fait un tours d'enchère 
-    """
+def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
+    """Gère un tour d'enchères (preflop/postflop) et retourne (fini,mises)."""
     n = len(mains)
-
-    if not board:
-        start = (bouton + 3) % n
-    else:
-        start = (bouton + 1) % n
-
     mises = [0] * n
     big = 0
-    current = start
     acted = [False] * n
+    boutons = None
+
+    if not board:
+        sb = (bouton + 1) % n
+        bb = (bouton + 2) % n
+
+        sb_bet = min(small_blind, jetons[sb])
+        jetons[sb] -= sb_bet
+        mises[sb] += sb_bet
+        pot_add_bet(pm, sb, sb_bet)
+
+        bb_bet = min(big_blind, jetons[bb])
+        jetons[bb] -= bb_bet
+        mises[bb] += bb_bet
+        pot_add_bet(pm, bb, bb_bet)
+
+        big = max(sb_bet, bb_bet)
+
+    current = (bouton + 3) % n
 
     while True:
 
-        folded = pot_manager["folded"]
-        all_in = pot_manager["all_in"]
-        contributions = pot_manager["contributions"]
+        graphique.jetons_global = jetons
+        graphique.folded_global = pm["folded"]
 
-        actifs = [i for i in range(n) if not folded[i]]
+        if len(board) >= 3:
+            score = algorythme.meilleure_main(mains[5] + board)
+            graphique.hand_strengths[5] = nom_main(score)
 
+        graphique.dessiner_table(ecran)
+        graphique.dessiner_joueurs(ecran, jetons)
+        graphique.afficher_board(ecran, board)
+        graphique.afficher_pot(ecran, sum(pm["contributions"]))
+        graphique.afficher_round(ecran, round_number)
+
+        for i in range(n):
+            graphique.afficher_main_joueur(ecran, mains[i], i)
+            graphique.afficher_mise_joueur(ecran, i, mises[i])
+
+        if current == 5:
+            boutons = graphique.dessiner_boutons(ecran)
+        else:
+            boutons = None
+
+        graphique.rafraichir(ecran)
+        clock.tick(60)
+
+        folded = pm["folded"]
+        all_in = pm["all_in"]
+        contributions = pm["contributions"]
+
+        if all(folded[i] or jetons[i] <= 0 for i in ia_players):
+            return True, mises
+
+        actifs = [i for i in range(n) if not folded[i] and jetons[i] > 0]
         if len(actifs) == 1:
             return True, mises
 
-        if all(folded[i] or all_in[i] or (acted[i] and mises[i] == big) for i in range(n)):
+        if all(
+            folded[i] or all_in[i] or (acted[i] and mises[i] == big) or jetons[i] <= 0
+            for i in range(n)
+        ):
             return False, mises
 
-        if folded[current] or all_in[current]:
+        if folded[current] or all_in[current] or jetons[current] <= 0:
             current = (current + 1) % n
             continue
 
         to_call = big - mises[current]
 
-        if (
-            not board
-            and sum(contributions) == SMALL_BLIND + BIG_BLIND
-            and position_joueur(current, bouton) not in ["SB", "BB"]
-        ):
-            to_call = 0
-
-        print("\n==============================")
-        print(
-            f"Joueur {current} ({'IA' if current in ia_players else 'HUMAIN'}) - Position {position_joueur(current, bouton, n)}"
-        )
-        if current not in ia_players:
-            print("Main :", mains[current])
-        print("Board :", board)
-        print("Pot courant :", sum(contributions))
-        print("Mise actuelle :", mises[current])
-        print("Doit payer :", to_call)
-        print("Jetons restants :", jetons[current])
-        print("==============================")
-
         if current in ia_players:
+
+            graphique.afficher_action_joueur(ecran, current, "Réfléchit…")
+            graphique.rafraichir(ecran)
+            pygame.time.wait(400)
+
             action = ia.decision(
                 main=mains[current],
                 board=board,
@@ -177,78 +231,79 @@ def tour_encheres(mains, jetons, pot_manager, board, bouton):
                 pot=sum(contributions),
                 position=position_joueur(current, bouton, n),
             )
-            print("Action IA :", action)
+
+            if action == "a":
+                txt = "Se couche"
+            elif action == "s":
+                txt = "Suit / Check"
+            else:
+                txt = f"Relance {action}"
+
+            graphique.afficher_action_joueur(ecran, current, txt)
+            graphique.rafraichir(ecran)
+            pygame.time.wait(600)
+
         else:
-            action = input("Action? (f=fold, c=call/check, sinon montant relance) ")
+            if boutons is None:
+                current = (current + 1) % n
+                continue
+
+            action = graphique.attendre_action_joueur(boutons)
+            if action == "r":
+                action = graphique.demander_relance(ecran)
 
         acted[current] = True
 
-        if action == "f":
-            afficher_action(f"Joueur {current} FOLD")
-            pot_fold(pot_manager, current)
+        if action == "a":
+            pot_fold(pm, current)
             current = (current + 1) % n
             continue
 
-        if action == "c":
+        if action == "s":
             if to_call > 0:
                 call_amount = min(jetons[current], to_call)
                 mises[current] += call_amount
                 jetons[current] -= call_amount
-                pot_add_bet(pot_manager, current, call_amount)
-
+                pot_add_bet(pm, current, call_amount)
                 if jetons[current] == 0:
-                    pot_set_all_in(pot_manager, current)
-                    afficher_action(f"Joueur {current} ALL-IN (call)")
-                else:
-                    afficher_action(f"Joueur {current} CALL ({mises[current]})")
-            else:
-                afficher_action(f"Joueur {current} CHECK")
+                    pot_set_all_in(pm, current)
+            current = (current + 1) % n
+            continue
+
+        if isinstance(action, int):
+            raise_amount = min(action, jetons[current])
+            mises[current] += raise_amount
+            jetons[current] -= raise_amount
+            pot_add_bet(pm, current, raise_amount)
+
+            if jetons[current] == 0:
+                pot_set_all_in(pm, current)
+
+            if mises[current] > big:
+                big = mises[current]
+                for i in range(n):
+                    if (
+                        i != current
+                        and not folded[i]
+                        and not all_in[i]
+                        and jetons[i] > 0
+                    ):
+                        acted[i] = False
 
             current = (current + 1) % n
             continue
 
-        try:
-            target = int(action)
-        except ValueError:
-            print("Action invalide.")
-            continue
-
-        if target <= mises[current]:
-            print("Relance trop petite.")
-            continue
-
-        raise_amount = min(target - mises[current], jetons[current])
-
-        mises[current] += raise_amount
-        jetons[current] -= raise_amount
-        pot_add_bet(pot_manager, current, raise_amount)
-
-        if jetons[current] == 0:
-            pot_set_all_in(pot_manager, current)
-            afficher_action(f"Joueur {current} ALL-IN à {mises[current]}")
-        else:
-            if to_call == 0:
-                afficher_action(f"Joueur {current} BET à {mises[current]}")
-            else:
-                afficher_action(f"Joueur {current} RAISE à {mises[current]}")
-
-        if mises[current] > big:
-            big = mises[current]
-            for i in range(n):
-                if i != current and not folded[i] and not all_in[i]:
-                    acted[i] = False
-
-        current = (current + 1) % n
-
-
-def showdown(mains, board, pot_manager):
-    """Détermine le(s) gagnant(s) et distribue le pot."""
-    pots = pot_build_side_pots(pot_manager)
-    folded = pot_manager["folded"]
+# ---------------------------------------------------------
+# SHOWDOWN LOGIQUE
+# ---------------------------------------------------------
+def showdown(mains, board, pm):
+    """Résout le showdown logique et retourne les gains par joueur."""
+    pots = pot_build_side_pots(pm)
+    folded = pm["folded"]
 
     results = {}
     for i, main in enumerate(mains):
-        if not folded[i]:
+        if not folded[i] and jetons[i] > 0:
             results[i] = algorythme.meilleure_main(main + board)
 
     gains = [0] * len(mains)
@@ -259,6 +314,8 @@ def showdown(mains, board, pot_manager):
         winners = []
 
         for p in eligibles:
+            if jetons[p] <= 0:
+                continue
             score = results[p]
             if best_score is None or score > best_score:
                 best_score = score
@@ -271,35 +328,32 @@ def showdown(mains, board, pot_manager):
 
         for w in winners:
             gains[w] += share
-
         for i in range(remainder):
             gains[winners[i]] += 1
 
     return gains
 
 
+# ---------------------------------------------------------
+# UNE MAIN COMPLÈTE
+# ---------------------------------------------------------
 def game():
-    """Gère une main de poker."""
-    global jetons, bouton
+    """Exécute une main complète (préflop → river) et met à jour l'état des jetons."""
+    global jetons, bouton, round_number, blind_multiplier
 
     n = len(jetons)
     if n < 2:
-        print("Tournoi terminé : moins de 2 joueurs.")
-        sys.exit(0)
+        sys.exit()
+
+    if round_number % 10 == 0 and blind_multiplier < 8:
+        blind_multiplier *= 2
+
+    small_blind = SMALL_BLIND_BASE * blind_multiplier
+    big_blind = BIG_BLIND_BASE * blind_multiplier
 
     deck = new_deck()
     mains = [[] for _ in range(n)]
     board = []
-
-    positions = [position_joueur(i, bouton, n) for i in range(n)]
-    print("=== Début de la main ===")
-    for i in range(n):
-        statut = "IA" if i in ia_players else "HUMAIN"
-        print(
-            f"Joueur {i} ({statut}) -> Position: {positions[i]} ; Jetons: {jetons[i]}"
-        )
-    print("========================")
-    time.sleep(5)
 
     for i in range(n):
         mains[i].append(tirer_carte(deck))
@@ -307,72 +361,71 @@ def game():
 
     pm = init_pot_manager(n)
 
-    for i in range(n):
-        pos = position_joueur(i, bouton, n)
-        if pos == "SB":
-            mise = min(jetons[i], SMALL_BLIND)
-            jetons[i] -= mise
-            pot_add_bet(pm, i, mise)
-        elif pos == "BB":
-            mise = min(jetons[i], BIG_BLIND)
-            jetons[i] -= mise
-            pot_add_bet(pm, i, mise)
-
-    fini, _ = tour_encheres(mains, jetons, pm, board, bouton)
+    fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
+        afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
             jetons[i] += g
-        afficher_fin(mains, board, gains)
         bouton = (bouton + 1) % n
+        round_number += 1
+        pygame.time.wait(800)
+        return
+
+    _ = tirer_carte(deck)
+    board += [tirer_carte(deck), tirer_carte(deck), tirer_carte(deck)]
+    pygame.time.wait(500)
+
+    fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
+    if fini:
+        afficher_showdown(mains, board, pm)
+        gains = showdown(mains, board, pm)
+        for i, g in enumerate(gains):
+            jetons[i] += g
+        bouton = (bouton + 1) % n
+        round_number += 1
+        pygame.time.wait(800)
         return
 
     _ = tirer_carte(deck)
     board.append(tirer_carte(deck))
-    board.append(tirer_carte(deck))
-    board.append(tirer_carte(deck))
+    pygame.time.wait(500)
 
-    fini, _ = tour_encheres(mains, jetons, pm, board, bouton)
+    fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
+        afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
             jetons[i] += g
-        afficher_fin(mains, board, gains)
         bouton = (bouton + 1) % n
+        round_number += 1
+        pygame.time.wait(800)
         return
 
     _ = tirer_carte(deck)
     board.append(tirer_carte(deck))
+    pygame.time.wait(500)
 
-    fini, _ = tour_encheres(mains, jetons, pm, board, bouton)
-    if fini:
-        gains = showdown(mains, board, pm)
-        for i, g in enumerate(gains):
-            jetons[i] += g
-        afficher_fin(mains, board, gains)
-        bouton = (bouton + 1) % n
-        return
+    fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
 
-    _ = tirer_carte(deck)
-    board.append(tirer_carte(deck))
-
-    fini, _ = tour_encheres(mains, jetons, pm, board, bouton)
+    afficher_showdown(mains, board, pm)
     gains = showdown(mains, board, pm)
     for i, g in enumerate(gains):
         jetons[i] += g
-    afficher_fin(mains, board, gains)
+
     bouton = (bouton + 1) % n
+    round_number += 1
+    pygame.time.wait(800)
 
 
-def afficher_fin(mains, board, gains):
-    """Affiche les résultats de la main."""
-    print("========== FIN DE LA MAIN ==========")
-    print("Board :", board)
-    for i, main in enumerate(mains):
-        print(f"{"IA" if i in ia_players else "Joueur"} {i} : {main} | Gain: {gains[i]} | Stack: {jetons[i]}")
-    print("====================================")
-    time.sleep(5)
-
-
+# ---------------------------------------------------------
+# BOUCLE PRINCIPALE
+# ---------------------------------------------------------
 while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
     game()
+    clock.tick(60)
