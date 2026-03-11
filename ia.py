@@ -356,8 +356,15 @@ RANGES = {
 
 
 def convertir_notation(main):
-    """Convertit une main de poker en notation standard (ex: AKs, JTo)."""
-
+    """
+    Convertit une main en notation standard poker.
+    
+    Args:
+        main (list): Deux cartes au format 'VVC'
+    
+    Returns:
+        str: Notation standard (ex: 'AKs', 'JTo', 'AA')
+    """
     v1 = int(main[0][:2])
     v2 = int(main[1][:2])
     c1 = main[0][2]
@@ -382,16 +389,31 @@ def convertir_notation(main):
     l1, l2 = valeurs[v1], valeurs[v2]
 
     suited = c1 == c2
+    
+    comp_v1 = 14 if v1 == 1 else v1
+    comp_v2 = 14 if v2 == 1 else v2
 
     if v1 == v2:
         return l1 + l2
-    if v1 > v2:
+    if comp_v1 > comp_v2:
         return l1 + l2 + ("s" if suited else "o")
     return l2 + l1 + ("s" if suited else "o")
 
 
 def eval_preflop(main, position, mise_a_suivre, jetons, pot):
-    """Évalue une main de poker pré-flop et retourne une action."""
+    """
+    Évalue une main preflop basée sur les ranges.
+    
+    Args:
+        main (list): Deux cartes du joueur
+        position (str): Position du joueur
+        mise_a_suivre (int): Montant à suivre
+        jetons (int): Jetons du joueur
+        pot (int): Montant du pot
+    
+    Returns:
+        str or int: "a" (fold), "s" (check/call), ou montant (raise)
+    """
 
     notation = convertir_notation(main)
 
@@ -425,7 +447,16 @@ def eval_preflop(main, position, mise_a_suivre, jetons, pot):
 
 
 def has_draw(main, board):
-    """Vérifie si une main a un tirage couleur ou quinte."""
+    """
+    Vérifie si une main a un tirage couleur ou quinte.
+    
+    Args:
+        main (list): Deux cartes du joueur
+        board (list): Cartes communes
+    
+    Returns:
+        bool: True si tirage présent, False sinon
+    """
     couleurs = [c[2] for c in main + board]
     valeurs = sorted(int(c[:2]) for c in main + board)
     if couleurs and max(couleurs.count(x) for x in set(couleurs)) >= 4:
@@ -438,7 +469,24 @@ def has_draw(main, board):
 
 
 def postflop_action(main, board, jetons, mise_a_suivre, pot, position, nb_joueurs):
-    """Détermine l'action à effectuer post-flop en fonction de la force de la main."""
+    """
+    Évalue la force de la main après le flop et détermine l'action à effectuer.
+    
+    Analyse la main actuelle contre le board pour détecter les tirages et classer
+    la combinaison, puis retourne une action en fonction de la force estimée.
+    
+    Args:
+        main (list): Les deux cartes du joueur au format ['VVCC', 'VVCC']
+        board (list): Cartes communes du board au format ['VVCC', 'VVCC', ...]
+        jetons (int): Taille de la pile de jetons du joueur
+        mise_a_suivre (int): Mise courante à suivre (0 si aucune mise)
+        pot (int): Montant total du pot
+        position (str): Position du joueur ("UTG", "CO", "BTN", "SB", "BB", "SMALL_BLIND")
+        nb_joueurs (int): Nombre de joueurs actifs dans la main
+    
+    Returns:
+        str: Commande d'action - "raise_big", "raise_small", "bet_big", "bet_medium", "bet_small", "s" (suivre), "a" (coucher)
+    """
 
     analyse = algorythme.algorythme5c(main + board)
     comb = analyse["combinaison"]
@@ -479,7 +527,23 @@ def postflop_action(main, board, jetons, mise_a_suivre, pot, position, nb_joueur
 
 
 def decision(main, board, jetons, mise_a_suivre, pot, position):
-    """Fonction principale qui prend une décision en fonction de la situation."""
+    """
+    Fonction principale de décision qui route vers la stratégie appropriée.
+    
+    Oriente la prise de décision vers eval_preflop ou postflop_action selon l'état
+    du board, puis convertit la commande d'action en montant de mise concret.
+    
+    Args:
+        main (list): Les deux cartes du joueur au format ['VVCC', 'VVCC']
+        board (list): Cartes communes (vide si préflop, 3 si flop, 4 si turn, 5 si river)
+        jetons (int): Taille de la pile de jetons du joueur
+        mise_a_suivre (int): Mise courante à suivre (0 si aucune mise)
+        pot (int): Montant total du pot
+        position (str): Position du joueur ("UTG", "CO", "BTN", "SB", "BB", "SMALL_BLIND")
+    
+    Returns:
+        str or int: "a" (coucher), "s" (suivre/check), ou entier (montant de mise en jetons)
+    """
 
     if len(board) == 0:
         action = eval_preflop(main, position, mise_a_suivre, jetons, pot)
@@ -498,10 +562,17 @@ def decision(main, board, jetons, mise_a_suivre, pot, position):
         return "a"
     if action == "s":
         return "s"
-    if action == "bet_small":
-        return min(jetons, pot // 3)
+    if action == "bet_big":
+        return min(jetons, max(int(pot * 0.75), mise_a_suivre + 1))
+    if action == "raise_big":
+        return min(jetons, max(int(mise_a_suivre * 2.5), mise_a_suivre + 1))
     if action == "bet_medium":
-        return min(jetons, pot // 2)
+        return min(jetons, max(int(pot * 0.5), mise_a_suivre + 1))
+    if action == "raise_small":
+        return min(jetons, max(int(mise_a_suivre * 1.5), mise_a_suivre + 1))
+    if action == "bet_small":
+        return min(jetons, max(int(pot * 0.25), mise_a_suivre + 1))
+    return "s"
     if action == "bet_big":
         return min(jetons, (pot * 2) // 3)
     if action == "raise_small":

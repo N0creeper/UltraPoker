@@ -34,7 +34,15 @@ PLAYER_POS = {
 
 
 def charger_images():
-    """Charge les images des cartes depuis le dossier Assets."""
+    """
+    Charge les images des cartes depuis le dossier Assets.
+    
+    Args:
+        None
+    
+    Returns:
+        None (remplit le dictionnaire images_cartes)
+    """
     dossier = "Assets"
     for fichier in os.listdir(dossier):
         if fichier.endswith(".png"):
@@ -49,7 +57,15 @@ def charger_images():
 
 
 def creer_fenetre():
-    """Crée et retourne la fenêtre Pygame du jeu."""
+    """
+    Crée la fenêtre Pygame du jeu.
+    
+    Args:
+        None
+    
+    Returns:
+        pygame.Surface: La surface principale du jeu
+    """
     ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
     pygame.display.set_caption("Poker Texas Hold'em")
     charger_images()
@@ -57,12 +73,29 @@ def creer_fenetre():
 
 
 def dessiner_table(ecran):
-    """Remplit l'écran avec la couleur de la table."""
+    """
+    Remplit l'écran avec la couleur de la table.
+    
+    Args:
+        ecran (pygame.Surface): Surface à remplir
+    
+    Returns:
+        None
+    """
     ecran.fill(VERT_TABLE)
 
 
 def dessiner_joueurs(ecran, jetons):
-    """Dessine les informations de jetons pour chaque joueur actif."""
+    """
+    Affiche les informations de jetons pour chaque joueur actif.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        jetons (list): Jetons de chaque joueur
+    
+    Returns:
+        None
+    """
     for i in range(6):
         if jetons[i] <= 0:
             continue
@@ -72,13 +105,35 @@ def dessiner_joueurs(ecran, jetons):
 
 
 def afficher_carte(ecran, code, x, y):
-    """Affiche l'image d'une carte donnée si elle est chargée."""
+    """
+    Affiche l'image d'une carte à l'écran.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        code (str): Code de la carte (ex: "01C")
+        x (int): Coordonnée X
+        y (int): Coordonnée Y
+    
+    Returns:
+        None
+    """
     if code in images_cartes:
         ecran.blit(images_cartes[code], (x, y))
 
 
 def afficher_main(ecran, main, x, y):
-    """Affiche jusqu'à deux cartes d'une main à la position donnée."""
+    """
+    Affiche jusqu'à deux cartes d'une main.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        main (list): Liste des cartes
+        x (int): Coordonnée X de départ
+        y (int): Coordonnée Y de départ
+    
+    Returns:
+        None
+    """
     if len(main) >= 1:
         afficher_carte(ecran, main[0], x, y)
     if len(main) >= 2:
@@ -86,7 +141,17 @@ def afficher_main(ecran, main, x, y):
 
 
 def afficher_main_joueur(ecran, main, joueur_id):
-    """Affiche la main d'un joueur (cache les cartes des IA hors showdown)."""
+    """
+    Affiche la main d'un joueur (cache les IA hors showdown).
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        main (list): 2 cartes du joueur
+        joueur_id (int): Index du joueur
+    
+    Returns:
+        None
+    """
     if not jetons_global:
         return
     if jetons_global[joueur_id] <= 0:
@@ -112,7 +177,16 @@ def afficher_main_joueur(ecran, main, joueur_id):
 
 
 def afficher_force_main(ecran, joueur_id):
-    """Affiche la force de la main sous les cartes du joueur si disponible."""
+    """
+    Affiche la force de la main sous les cartes du joueur.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        joueur_id (int): Index du joueur
+    
+    Returns:
+        None
+    """
     if joueur_id not in hand_strengths:
         return
 
@@ -122,7 +196,16 @@ def afficher_force_main(ecran, joueur_id):
 
 
 def afficher_board(ecran, board):
-    """Affiche les cartes communes (board) centrées sur l'écran."""
+    """
+    Affiche les cartes communes centrées à l'écran.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        board (list): Cartes communes
+    
+    Returns:
+        None
+    """
     start_x = LARGEUR // 2 - (len(board) * (CARD_WIDTH + 10)) // 2
     y = HAUTEUR // 2 - CARD_HEIGHT // 2 - 20
     for i, carte in enumerate(board):
@@ -130,7 +213,16 @@ def afficher_board(ecran, board):
 
 
 def afficher_pot(ecran, montant):
-    """Affiche le montant du pot au-dessus du board."""
+    """
+    Affiche le montant du pot au-dessus du board.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        montant (int): Montant du pot
+    
+    Returns:
+        None
+    """
     txt = police.render(f"Pot : {montant}", True, BLANC)
     x = LARGEUR // 2 - txt.get_width() // 2
     y = HAUTEUR // 2 - CARD_HEIGHT - 50
@@ -138,13 +230,32 @@ def afficher_pot(ecran, montant):
 
 
 def afficher_round(ecran, round_number):
-    """Affiche le numéro du round en haut à droite."""
+    """
+    Affiche le numéro du round en haut à droite.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        round_number (int): Numéro du round
+    
+    Returns:
+        None
+    """
     txt = police.render(f"Round : {round_number}", True, BLANC)
     ecran.blit(txt, (LARGEUR - txt.get_width() - 20, 20))
 
 
 def afficher_mise_joueur(ecran, joueur_id, mise):
-    """Affiche la mise courante d'un joueur à côté de sa position."""
+    """
+    Affiche la mise courante d'un joueur.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        joueur_id (int): Index du joueur
+        mise (int): Montant de la mise
+    
+    Returns:
+        None
+    """
     if mise <= 0:
         return
     if not jetons_global or jetons_global[joueur_id] <= 0:
@@ -156,7 +267,17 @@ def afficher_mise_joueur(ecran, joueur_id, mise):
 
 
 def afficher_action_joueur(ecran, joueur_id, texte):
-    """Affiche une action textuelle pour le joueur (fold, check, etc.)."""
+    """
+    Affiche une action textuelle pour le joueur.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        joueur_id (int): Index du joueur
+        texte (str): Action à afficher ("Fold", "Check", etc.)
+    
+    Returns:
+        None
+    """
     if not jetons_global or jetons_global[joueur_id] <= 0:
         return
     x, y = PLAYER_POS[joueur_id]
@@ -168,7 +289,15 @@ def afficher_action_joueur(ecran, joueur_id, texte):
 
 
 def dessiner_boutons(ecran):
-    """Dessine les boutons d'action pour le joueur humain et retourne leurs rects."""
+    """
+    Dessine les boutons d'action pour le joueur humain.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+    
+    Returns:
+        dict: Dictionnaire des rectangles des boutons
+    """
     y = PLAYER_POS[5][1] + CARD_HEIGHT + 15
 
     boutons = {
@@ -189,7 +318,15 @@ def dessiner_boutons(ecran):
 
 
 def demander_relance(ecran):
-    """Demande au joueur de saisir un montant de relance via le clavier."""
+    """
+    Demande au joueur de saisir un montant de relance.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+    
+    Returns:
+        int: Montant saisi par le joueur
+    """
     montant = ""
     zone = pygame.Rect(350, 300, 300, 60)
 
@@ -214,7 +351,15 @@ def demander_relance(ecran):
 
 
 def attendre_action_joueur(boutons):
-    """Attend une interaction souris sur les boutons et retourne 'a','s' ou 'r'."""
+    """
+    Attend une interaction souris sur les boutons d'action.
+    
+    Args:
+        boutons (dict): Dictionnaire des rectangles des boutons
+    
+    Returns:
+        str: Action choisie ("a", "s", ou "r")
+    """
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -231,5 +376,13 @@ def attendre_action_joueur(boutons):
 
 
 def rafraichir(ecran):
-    """Rafraîchit l'affichage Pygame."""
+    """
+    Rafraîchit l'affichage Pygame.
+    
+    Args:
+        ecran (pygame.Surface): Surface à rafraîchissir
+    
+    Returns:
+        None
+    """
     pygame.display.flip()

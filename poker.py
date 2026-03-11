@@ -21,7 +21,15 @@ ecran = graphique.creer_fenetre()
 clock = pygame.time.Clock()
 
 def nom_main(score_tuple):
-    """Retourne le nom textuel d'une main à partir du tuple de score."""
+    """
+    Retourne le nom textuel d'une main de poker.
+    
+    Args:
+        score_tuple (tuple): Tuple de score retourné par meilleure_main()
+    
+    Returns:
+        str: Nom de la combinaison (ex: "Paire", "Suite", "Full")
+    """
     rank = score_tuple[0]
     noms = {
         1: "Hauteur",
@@ -38,26 +46,60 @@ def nom_main(score_tuple):
 
 
 def new_deck():
-    """Crée un nouveau jeu de 52 cartes au format 'VVC'."""
+    """
+    Crée un paquet complet de 52 cartes.
+    
+    Args:
+        None
+    
+    Returns:
+        list: Liste de 52 cartes au format 'VVC' (ex: "01C", "13D")
+    """
     couleurs = ["C", "D", "P", "T"]
     valeurs = ["01","02","03","04","05","06","07","08","09","10","11","12","13"]
     return [v + c for v in valeurs for c in couleurs]
 
 
 def tirer_carte(deck):
-    """Tire aléatoirement une carte du paquet et la retire."""
+    """
+    Tire aléatoirement une carte du paquet et la retire.
+    
+    Args:
+        deck (list): Paquet de cartes
+    
+    Returns:
+        str: Carte tirée (ex: "01C")
+    """
     i = random.randrange(len(deck))
     return deck.pop(i)
 
 
 def position_joueur(i, bouton, n_players=6):
-    """Calcule la position d'un joueur en fonction du bouton."""
+    """
+    Calcule la position d'un joueur en fonction du bouton.
+    
+    Args:
+        i (int): Index du joueur
+        bouton (int): Position du bouton
+        n_players (int): Nombre total de joueurs
+    
+    Returns:
+        str: Position du joueur ("BTN", "SB", "BB", "UTG", "MP", "CO")
+    """
     positions = ["BTN", "SB", "BB", "UTG", "MP", "CO"]
     return positions[(i - bouton) % n_players]
 
 
 def init_pot_manager(n_players):
-    """Initialise le gestionnaire de pot pour n joueurs."""
+    """
+    Initialise le gestionnaire de pot pour n joueurs.
+    
+    Args:
+        n_players (int): Nombre de joueurs
+    
+    Returns:
+        dict: Dictionnaire de gestion du pot avec contributions, folds et all-ins
+    """
     return {
         "n": n_players,
         "contributions": [0] * n_players,
@@ -67,22 +109,58 @@ def init_pot_manager(n_players):
 
 
 def pot_add_bet(pm, player, amount):
-    """Ajoute une mise au pot pour un joueur donné."""
+    """
+    Ajoute une mise au pot pour un joueur.
+    
+    Args:
+        pm (dict): Pot manager
+        player (int): Index du joueur
+        amount (int): Montant de la mise
+    
+    Returns:
+        None
+    """
     pm["contributions"][player] += amount
 
 
 def pot_fold(pm, player):
-    """Marque un joueur comme ayant foldé dans le pot manager."""
+    """
+    Marque un joueur comme ayant foldé.
+    
+    Args:
+        pm (dict): Pot manager
+        player (int): Index du joueur
+    
+    Returns:
+        None
+    """
     pm["folded"][player] = True
 
 
 def pot_set_all_in(pm, player):
-    """Marque un joueur comme all-in dans le pot manager."""
+    """
+    Marque un joueur comme all-in.
+    
+    Args:
+        pm (dict): Pot manager
+        player (int): Index du joueur
+    
+    Returns:
+        None
+    """
     pm["all_in"][player] = True
 
 
 def pot_build_side_pots(pm):
-    """Construit la liste des side-pots à partir des contributions."""
+    """
+    Construit la liste des side-pots à partir des contributions.
+    
+    Args:
+        pm (dict): Pot manager
+    
+    Returns:
+        list: Liste de dictionnaires contenant les pots et joueurs éligibles
+    """
     n = pm["n"]
     contrib = pm["contributions"][:]
     folded = pm["folded"]
@@ -110,17 +188,27 @@ def pot_build_side_pots(pm):
     return pots
 
 
-# ---------------------------------------------------------
-# SHOWDOWN VISUEL
-# ---------------------------------------------------------
+
 def afficher_showdown(mains, board, pm):
-    """Affiche le showdown visuel et montre les forces des mains."""
+    """
+    Affiche le showdown visuel avec les mains et les forces de chaque joueur.
+    
+    Args:
+        mains (list): Listes des 2 cartes de chaque joueur
+        board (list): Cartes communes du board
+        pm (dict): Gestionnaire de pot
+    
+    Returns:
+        None
+    """
     graphique.showdown_mode = True
 
     for i in range(6):
         if not pm["folded"][i] and jetons[i] > 0:
-            score = algorythme.meilleure_main(mains[i] + board)
-            graphique.hand_strengths[i] = nom_main(score)
+            if len(mains[i]) + len(board) >= 5:
+                score = algorythme.meilleure_main(mains[i] + board)
+                if score and len(score) > 0:
+                    graphique.hand_strengths[i] = nom_main(score)
 
     graphique.dessiner_table(ecran)
     graphique.dessiner_joueurs(ecran, jetons)
@@ -142,7 +230,21 @@ def afficher_showdown(mains, board, pm):
 
 
 def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
-    """Gère un tour d'enchères (preflop/postflop) et retourne (fini,mises)."""
+    """
+    Gère un tour d'enchères complet (préflop ou postflop).
+    
+    Args:
+        mains (list): Mains de chaque joueur
+        jetons (list): Jetons de chaque joueur
+        pm (dict): Gestionnaire de pot
+        board (list): Cartes communes du board
+        bouton (int): Position du bouton
+        small_blind (int): Montant de la petite blind
+        big_blind (int): Montant de la grosse blind
+    
+    Returns:
+        tuple: (fini: bool, mises: list) - True si tour terminé, liste des mises
+    """
     n = len(mains)
     mises = [0] * n
     big = 0
@@ -174,7 +276,8 @@ def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
 
         if len(board) >= 3:
             score = algorythme.meilleure_main(mains[5] + board)
-            graphique.hand_strengths[5] = nom_main(score)
+            if score and len(score) > 0:
+                graphique.hand_strengths[5] = nom_main(score)
 
         graphique.dessiner_table(ecran)
         graphique.dessiner_joueurs(ecran, jetons)
@@ -293,18 +396,31 @@ def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
             current = (current + 1) % n
             continue
 
-# ---------------------------------------------------------
-# SHOWDOWN LOGIQUE
-# ---------------------------------------------------------
+
 def showdown(mains, board, pm):
-    """Résout le showdown logique et retourne les gains par joueur."""
+    """
+    Résout le showdown et distribue les gains à chaque joueur.
+    
+    Args:
+        mains (list): Mains de chaque joueur
+        board (list): Cartes communes du board
+        pm (dict): Gestionnaire de pot
+    
+    Returns:
+        list: Gains de chaque joueur
+    """
     pots = pot_build_side_pots(pm)
     folded = pm["folded"]
 
     results = {}
     for i, main in enumerate(mains):
         if not folded[i] and jetons[i] > 0:
-            results[i] = algorythme.meilleure_main(main + board)
+            score_result = algorythme.meilleure_main(main + board)
+            # Vérify que le score est valide (au moins un tuple avec un nombre)
+            if score_result and len(score_result) > 0:
+                results[i] = score_result
+            else:
+                results[i] = (0,)  # Score minimal si la main est invalide
 
     gains = [0] * len(mains)
 
@@ -314,14 +430,21 @@ def showdown(mains, board, pm):
         winners = []
 
         for p in eligibles:
-            if jetons[p] <= 0:
+            if jetons[p] <= 0 or p not in results:
                 continue
-            score = results[p]
-            if best_score is None or score > best_score:
-                best_score = score
+            score_val = results[p]
+            if best_score is None or score_val > best_score:
+                best_score = score_val
                 winners = [p]
-            elif score == best_score:
+            elif score_val == best_score:
                 winners.append(p)
+
+        if not winners:
+            # Pas de gagnant valide - donner le pot au premier joueur éligible
+            if eligibles:
+                winners = [eligibles[0]]
+            else:
+                continue
 
         share = pot["amount"] // len(winners)
         remainder = pot["amount"] % len(winners)
@@ -334,11 +457,17 @@ def showdown(mains, board, pm):
     return gains
 
 
-# ---------------------------------------------------------
-# UNE MAIN COMPLÈTE
-# ---------------------------------------------------------
+
 def game():
-    """Exécute une main complète (préflop → river) et met à jour l'état des jetons."""
+    """
+    Exécute une main complète de poker du préflop à la river.
+    
+    Args:
+        None (utilise les variables globales jetons, bouton, round_number, etc.)
+    
+    Returns:
+        None (modifie les variables globales et l'affichage)
+    """
     global jetons, bouton, round_number, blind_multiplier
 
     n = len(jetons)
@@ -363,6 +492,17 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
+        actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+        if len(actifs) == 1:
+            gains = [0] * n
+            gains[actifs[0]] = sum(pm["contributions"])
+            for i, g in enumerate(gains):
+                jetons[i] += g
+            bouton = (bouton + 1) % n
+            round_number += 1
+            pygame.time.wait(500)
+            return
+        
         afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
@@ -378,6 +518,17 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
+        actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+        if len(actifs) == 1:
+            gains = [0] * n
+            gains[actifs[0]] = sum(pm["contributions"])
+            for i, g in enumerate(gains):
+                jetons[i] += g
+            bouton = (bouton + 1) % n
+            round_number += 1
+            pygame.time.wait(500)
+            return
+        
         afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
@@ -393,6 +544,17 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
+        actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+        if len(actifs) == 1:
+            gains = [0] * n
+            gains[actifs[0]] = sum(pm["contributions"])
+            for i, g in enumerate(gains):
+                jetons[i] += g
+            bouton = (bouton + 1) % n
+            round_number += 1
+            pygame.time.wait(500)
+            return
+        
         afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
@@ -407,20 +569,25 @@ def game():
     pygame.time.wait(500)
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
-
-    afficher_showdown(mains, board, pm)
-    gains = showdown(mains, board, pm)
-    for i, g in enumerate(gains):
-        jetons[i] += g
+    
+    actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+    if len(actifs) == 1:
+        gains = [0] * n
+        gains[actifs[0]] = sum(pm["contributions"])
+        for i, g in enumerate(gains):
+            jetons[i] += g
+    else:
+        afficher_showdown(mains, board, pm)
+        gains = showdown(mains, board, pm)
+        for i, g in enumerate(gains):
+            jetons[i] += g
 
     bouton = (bouton + 1) % n
     round_number += 1
     pygame.time.wait(800)
 
 
-# ---------------------------------------------------------
-# BOUCLE PRINCIPALE
-# ---------------------------------------------------------
+
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
