@@ -1,0 +1,3 @@
+Le code source du projet UltraPoker est placé sous licence libre **GPL v3+**.
+Les textes, documents et contenus rédigés sont placés sous licence **Creative Commons CC BY-SA**.
+Ces licences permettent à toute personne d'utiliser, modifier, adapter et améliorer le projet, dans le respect des conditions associées.

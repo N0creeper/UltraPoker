@@ -1,3 +1,5 @@
+#Projet : UltraPoker
+#Auteurs : Noam, Ancelin, Damian, Gabriel
 from itertools import combinations
 
 

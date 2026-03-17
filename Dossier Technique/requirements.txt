@@ -1,0 +1,6 @@
+Ressorces demandés : 
+    pygame>=2.5.0
+
+Pour installer : 
+
+    pip install pygame

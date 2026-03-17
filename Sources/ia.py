@@ -1,3 +1,5 @@
+#Projet : UltraPoker
+#Auteurs : Noam, Ancelin, Damian, Gabriel
 import random
 import algorythme
 
@@ -572,11 +574,4 @@ def decision(main, board, jetons, mise_a_suivre, pot, position):
         return min(jetons, max(int(mise_a_suivre * 1.5), mise_a_suivre + 1))
     if action == "bet_small":
         return min(jetons, max(int(pot * 0.25), mise_a_suivre + 1))
-    return "s"
-    if action == "bet_big":
-        return min(jetons, (pot * 2) // 3)
-    if action == "raise_small":
-        return min(jetons, mise_a_suivre * 2)
-    if action == "raise_big":
-        return min(jetons, mise_a_suivre * 3)
     return "s"

@@ -1,3 +1,5 @@
+#Projet : UltraPoker
+#Auteurs : Noam, Ancelin, Damian, Gabriel
 import pygame
 import os
 import sys
@@ -43,7 +45,7 @@ def charger_images():
     Returns:
         None (remplit le dictionnaire images_cartes)
     """
-    dossier = "Assets"
+    dossier = "./data/Assets"
     for fichier in os.listdir(dossier):
         if fichier.endswith(".png"):
             nom = fichier.replace(".png", "")

@@ -1,3 +1,5 @@
+#Projet : UltraPoker
+#Auteurs : Noam, Ancelin, Damian, Gabriel
 import random
 import sys
 import time
@@ -5,7 +7,6 @@ import algorythme
 import ia
 import graphique
 import pygame
-
 
 SMALL_BLIND_BASE = 5
 BIG_BLIND_BASE = 10
@@ -587,12 +588,12 @@ def game():
     pygame.time.wait(800)
 
 
+def Partie():
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-    game()
-    clock.tick(60)
+        game()
+        clock.tick(60)
