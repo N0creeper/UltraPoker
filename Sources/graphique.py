@@ -26,12 +26,12 @@ showdown_mode = False
 hand_strengths = {}
 
 PLAYER_POS = {
-    0: (120, 480),
+    0: (120, 440),
     1: (120, 140),
     2: (430, 80),
     3: (740, 140),
-    4: (740, 480),
-    5: (430, 520),
+    4: (740, 440),
+    5: (430, 480),
 }
 
 
@@ -45,7 +45,8 @@ def charger_images():
     Returns:
         None (remplit le dictionnaire images_cartes)
     """
-    dossier = "./data/Assets"
+    # Chemin absolu vers le dossier Assets
+    dossier = os.path.join(os.path.dirname(__file__), "..", "Data", "Assets")
     for fichier in os.listdir(dossier):
         if fichier.endswith(".png"):
             nom = fichier.replace(".png", "")
@@ -56,6 +57,21 @@ def charger_images():
 
     if "Dos" in images_cartes:
         images_cartes["dos"] = images_cartes["Dos"]
+    
+    # Charger les images de fond
+    try:
+        table_game_path = os.path.join(dossier, "Table_game.png")
+        images_cartes["table_game"] = pygame.image.load(table_game_path).convert()
+        images_cartes["table_game"] = pygame.transform.scale(images_cartes["table_game"], (LARGEUR, HAUTEUR))
+    except pygame.error:
+        print("Erreur: Impossible de charger Table_game.png")
+    
+    try:
+        table_menu_path = os.path.join(dossier, "Table_Menu.png")
+        images_cartes["table_menu"] = pygame.image.load(table_menu_path).convert()
+        images_cartes["table_menu"] = pygame.transform.scale(images_cartes["table_menu"], (LARGEUR, HAUTEUR))
+    except pygame.error:
+        print("Erreur: Impossible de charger Table_Menu.png")
 
 
 def creer_fenetre():
@@ -76,7 +92,7 @@ def creer_fenetre():
 
 def dessiner_table(ecran):
     """
-    Remplit l'écran avec la couleur de la table.
+    Dessine l'arrière-plan de la table de jeu.
     
     Args:
         ecran (pygame.Surface): Surface à remplir
@@ -84,7 +100,11 @@ def dessiner_table(ecran):
     Returns:
         None
     """
-    ecran.fill(VERT_TABLE)
+    if "table_game" in images_cartes:
+        ecran.blit(images_cartes["table_game"], (0, 0))
+    else:
+        # Fallback vers la couleur unie si l'image n'est pas chargée
+        ecran.fill(VERT_TABLE)
 
 
 def dessiner_joueurs(ecran, jetons):
@@ -300,21 +320,25 @@ def dessiner_boutons(ecran):
     Returns:
         dict: Dictionnaire des rectangles des boutons
     """
-    y = PLAYER_POS[5][1] + CARD_HEIGHT + 15
+    # Descendre les boutons de 25 pixels
+    y = PLAYER_POS[5][1] + CARD_HEIGHT + 15 + 25
 
     boutons = {
         "a": pygame.Rect(300, y, 140, 45),
         "s": pygame.Rect(460, y, 140, 45),
         "r": pygame.Rect(620, y, 140, 45),
+        "lobby": pygame.Rect(50, 50, 150, 40),  # Bouton retour au lobby en haut à gauche
     }
 
     pygame.draw.rect(ecran, (200, 50, 50), boutons["a"])
     pygame.draw.rect(ecran, (50, 200, 50), boutons["s"])
     pygame.draw.rect(ecran, (50, 50, 200), boutons["r"])
+    pygame.draw.rect(ecran, (150, 150, 150), boutons["lobby"])  # Gris pour le bouton lobby
 
     ecran.blit(police.render("Abandonner", True, BLANC), (315, y + 12))
     ecran.blit(police.render("Suivre / Check", True, BLANC), (475, y + 12))
     ecran.blit(police.render("Relancer", True, BLANC), (645, y + 12))
+    ecran.blit(police_small.render("Lobby", True, BLANC), (85, 60))
 
     return boutons
 
@@ -360,7 +384,7 @@ def attendre_action_joueur(boutons):
         boutons (dict): Dictionnaire des rectangles des boutons
     
     Returns:
-        str: Action choisie ("a", "s", ou "r")
+        str: Action choisie ("a", "s", "r", ou "lobby")
     """
     while True:
         for event in pygame.event.get():
@@ -375,6 +399,8 @@ def attendre_action_joueur(boutons):
                     return "s"
                 if boutons["r"].collidepoint(x, y):
                     return "r"
+                if boutons["lobby"].collidepoint(x, y):
+                    return "lobby"
 
 
 def rafraichir(ecran):

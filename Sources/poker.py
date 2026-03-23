@@ -18,8 +18,13 @@ jetons = [1000] * 6
 ia_players = {0, 1, 2, 3, 4}
 bouton = 5
 
-ecran = graphique.creer_fenetre()
+ecran = None
 clock = pygame.time.Clock()
+
+def initialiser_ecran(screen):
+    global ecran
+    ecran = screen
+    graphique.charger_images()
 
 def nom_main(score_tuple):
     """
@@ -355,6 +360,9 @@ def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
             action = graphique.attendre_action_joueur(boutons)
             if action == "r":
                 action = graphique.demander_relance(ecran)
+            elif action == "lobby":
+                # Retour au menu principal
+                raise Exception("RETOUR_MENU")
 
         acted[current] = True
 
@@ -457,6 +465,69 @@ def showdown(mains, board, pm):
 
     return gains
 
+
+
+def afficher_resultats_round(ecran, gains):
+    """
+    Affiche les résultats du round (qui a gagné combien).
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+        gains (list): Gains de chaque joueur
+    """
+    if not gains or not ecran:
+        return
+    
+    # Créer le message des résultats
+    messages = []
+    gagnants = []
+    
+    for i, gain in enumerate(gains):
+        if gain > 0:
+            messages.append(f"Joueur {i+1}: +{gain} jetons")
+            gagnants.append(i)
+    
+    if not gagnants:
+        messages.append("Aucun gagnant")
+    
+    # Afficher pendant 5 secondes (au lieu de 3)
+    start_time = pygame.time.get_ticks()
+    while pygame.time.get_ticks() - start_time < 5000:
+        graphique.dessiner_table(ecran)
+        graphique.dessiner_joueurs(ecran, jetons)
+        
+        # Afficher les messages de résultats avec un fond
+        # Titre
+        titre = graphique.police.render("RÉSULTATS DU ROUND", True, graphique.BLANC)
+        titre_rect = pygame.Rect(graphique.LARGEUR//2 - titre.get_width()//2 - 10, 140, 
+                                titre.get_width() + 20, titre.get_height() + 10)
+        pygame.draw.rect(ecran, (0, 0, 0), titre_rect)
+        pygame.draw.rect(ecran, graphique.BLANC, titre_rect, 2)
+        ecran.blit(titre, (graphique.LARGEUR//2 - titre.get_width()//2, 145))
+        
+        y = 200
+        for message in messages:
+            color = (255, 215, 0) if "Joueur 6" in message else graphique.BLANC  # Or pour le joueur humain
+            txt = graphique.police.render(message, True, color)
+            
+            # Ajouter un fond opaque
+            fond_rect = pygame.Rect(graphique.LARGEUR//2 - txt.get_width()//2 - 10, y - 5, 
+                                   txt.get_width() + 20, txt.get_height() + 10)
+            pygame.draw.rect(ecran, (0, 0, 0), fond_rect)  # Fond noir opaque
+            pygame.draw.rect(ecran, color, fond_rect, 2)  # Bordure colorée
+            
+            ecran.blit(txt, (graphique.LARGEUR//2 - txt.get_width()//2, y))
+            y += 50  # Espacement plus grand
+        
+        graphique.rafraichir(ecran)
+        
+        # Gérer les événements pour permettre de quitter
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        
+        clock.tick(60)
 
 
 def game():
@@ -577,23 +648,39 @@ def game():
         gains[actifs[0]] = sum(pm["contributions"])
         for i, g in enumerate(gains):
             jetons[i] += g
+        
+        # Afficher les résultats du round même quand un seul joueur reste
+        afficher_resultats_round(ecran, gains)
     else:
         afficher_showdown(mains, board, pm)
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
             jetons[i] += g
-
+        
+        # Afficher les résultats du round
+        afficher_resultats_round(ecran, gains)
+        
     bouton = (bouton + 1) % n
     round_number += 1
     pygame.time.wait(800)
 
 
 def Partie():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+    try:
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
 
-        game()
-        clock.tick(60)
+            game()
+            clock.tick(60)
+            
+            # Vérifier si le joueur humain n'a plus de jetons
+            if jetons[5] <= 0:
+                return "game_over"
+    except Exception as e:
+        if str(e) == "RETOUR_MENU":
+            return "menu"
+        else:
+            raise
