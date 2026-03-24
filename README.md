@@ -1,6 +1,6 @@
 # UltraPoker
 
-![Python Version](https://img.shields.io/badge/python-3.10%20-%203.13-blue) ![Status](https://img.shields.io/badge/status-active-green)
+[Status](https://img.shields.io/badge/status-active-green)
 
 ## Table des matières
 - [Installation](#installation)
@@ -63,9 +63,9 @@ Projet réalisé par 4 élèves de Première – Lycée F.-J. Talma (Brunoy), en
 
 Équipe :
 - Noam : Développeur principal
-- Ancelin : Graphiste, rédacteur
-- Damian : Graphiste, testeur
-- Gabriel : Graphiste, monteur vidéo
+- Ancelin : Developper secondaire, rédacteur en chef
+- Damian : Graphiste secondaire, testeur
+- Gabriel : Graphiste principal, monteur vidéo
 
 Temps total estimé : 45 à 50 heures, probablement plus.
 

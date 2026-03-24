@@ -3,6 +3,7 @@
 import pygame
 import os
 import sys
+import poker
 
 pygame.init()
 
@@ -11,6 +12,10 @@ HAUTEUR = 700
 VERT_TABLE = (0, 120, 0)
 BLANC = (255, 255, 255)
 JAUNE = (255, 215, 0)
+
+police = pygame.font.SysFont(None, 48)
+police_menu = pygame.font.SysFont(None, 32)
+police_small = pygame.font.SysFont(None, 24)
 
 CARD_WIDTH = 70
 CARD_HEIGHT = 105
@@ -45,7 +50,6 @@ def charger_images():
     Returns:
         None (remplit le dictionnaire images_cartes)
     """
-    # Chemin absolu vers le dossier Assets
     dossier = os.path.join(os.path.dirname(__file__), "..", "Data", "Assets")
     for fichier in os.listdir(dossier):
         if fichier.endswith(".png"):
@@ -58,7 +62,6 @@ def charger_images():
     if "Dos" in images_cartes:
         images_cartes["dos"] = images_cartes["Dos"]
     
-    # Charger les images de fond
     try:
         table_game_path = os.path.join(dossier, "Table_game.png")
         images_cartes["table_game"] = pygame.image.load(table_game_path).convert()
@@ -103,7 +106,6 @@ def dessiner_table(ecran):
     if "table_game" in images_cartes:
         ecran.blit(images_cartes["table_game"], (0, 0))
     else:
-        # Fallback vers la couleur unie si l'image n'est pas chargée
         ecran.fill(VERT_TABLE)
 
 
@@ -122,7 +124,7 @@ def dessiner_joueurs(ecran, jetons):
         if jetons[i] <= 0:
             continue
         x, y = PLAYER_POS[i]
-        txt = police.render(f"Joueur {i} : {jetons[i]} jetons", True, BLANC)
+        txt = police.render(f"{poker.player_names[i]} : {jetons[i]} jetons", True, BLANC)
         ecran.blit(txt, (x, y - 28))
 
 
@@ -320,20 +322,19 @@ def dessiner_boutons(ecran):
     Returns:
         dict: Dictionnaire des rectangles des boutons
     """
-    # Descendre les boutons de 25 pixels
     y = PLAYER_POS[5][1] + CARD_HEIGHT + 15 + 25
 
     boutons = {
         "a": pygame.Rect(300, y, 140, 45),
         "s": pygame.Rect(460, y, 140, 45),
         "r": pygame.Rect(620, y, 140, 45),
-        "lobby": pygame.Rect(50, 50, 150, 40),  # Bouton retour au lobby en haut à gauche
+        "lobby": pygame.Rect(50, 50, 150, 40),
     }
 
     pygame.draw.rect(ecran, (200, 50, 50), boutons["a"])
     pygame.draw.rect(ecran, (50, 200, 50), boutons["s"])
     pygame.draw.rect(ecran, (50, 50, 200), boutons["r"])
-    pygame.draw.rect(ecran, (150, 150, 150), boutons["lobby"])  # Gris pour le bouton lobby
+    pygame.draw.rect(ecran, (150, 150, 150), boutons["lobby"])
 
     ecran.blit(police.render("Abandonner", True, BLANC), (315, y + 12))
     ecran.blit(police.render("Suivre / Check", True, BLANC), (475, y + 12))
@@ -354,7 +355,7 @@ def demander_relance(ecran):
         int: Montant saisi par le joueur
     """
     montant = ""
-    zone = pygame.Rect(350, 300, 300, 60)
+    zone = pygame.Rect(350, 350, 300, 60)
 
     while True:
         for event in pygame.event.get():
@@ -362,7 +363,7 @@ def demander_relance(ecran):
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN and montant.isdigit():
+                if event.key == pygame.K_RETURN and montant and montant.isdigit():
                     return int(montant)
                 elif event.key == pygame.K_BACKSPACE:
                     montant = montant[:-1]
@@ -371,8 +372,9 @@ def demander_relance(ecran):
 
         pygame.draw.rect(ecran, (0, 0, 0), zone)
         pygame.draw.rect(ecran, BLANC, zone, 2)
-        txt = police.render("Relancer : " + montant, True, BLANC)
-        ecran.blit(txt, (360, 320))
+        txt = police.render("Montant : " + montant, True, BLANC)
+        ecran.blit(txt, (360, 370))
+        
         pygame.display.flip()
 
 

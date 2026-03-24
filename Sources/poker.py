@@ -2,9 +2,9 @@
 #Auteurs : Noam, Ancelin, Damian, Gabriel
 import random
 import sys
-import time
 import algorythme
 import ia
+import os
 import graphique
 import pygame
 
@@ -18,6 +18,22 @@ jetons = [1000] * 6
 ia_players = {0, 1, 2, 3, 4}
 bouton = 5
 
+noms_francais = [
+    "Jean", "Pierre", "Marie", "Michel", "André", "Philippe", "René", "Louis", "Alain", "Jacques",
+    "Bernard", "Marcel", "Daniel", "Roger", "Claude", "Christian", "François", "Patrick", "Didier", "Pascal",
+    "Thierry", "Nicolas", "Christophe", "Antoine", "Guillaume", "Stéphane", "Frédéric", "Sébastien", "Olivier", "Emmanuel",
+    "Vincent", "Thomas", "Julien", "Alexandre", "Romain", "Kevin", "Mathieu", "Lucas", "Hugo", "Nathan",
+    "Enzo", "Ethan", "Noah", "Tom", "Raphaël", "Jules", "Arthur", "Gabriel", "Léo", "Adam",
+    "Liam", "Sacha", "Mohamed", "Youssef", "Ahmed", "Mehdi", "Karim", "Omar", "Ali", "Hassan",
+    "Fatima", "Amina", "Leila", "Sara", "Nour", "Inès", "Sofia", "Lina", "Amira", "Zineb",
+    "Nadia", "Samira", "Hind", "Asma", "Imane","Ancelin","Damian","Noam"
+]
+
+player_names = [""] * 6
+
+pseudo = "Vous"
+player_has_died = False
+
 ecran = None
 clock = pygame.time.Clock()
 
@@ -25,6 +41,11 @@ def initialiser_ecran(screen):
     global ecran
     ecran = screen
     graphique.charger_images()
+
+def play_win_sound(gains):
+    if gains[5] > 0:
+        win_sound = pygame.mixer.Sound(os.path.join("..", "Data", "Musics", "win_sound.mp3"))
+        win_sound.play()
 
 def nom_main(score_tuple):
     """
@@ -361,7 +382,6 @@ def tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind):
             if action == "r":
                 action = graphique.demander_relance(ecran)
             elif action == "lobby":
-                # Retour au menu principal
                 raise Exception("RETOUR_MENU")
 
         acted[current] = True
@@ -423,13 +443,12 @@ def showdown(mains, board, pm):
 
     results = {}
     for i, main in enumerate(mains):
-        if not folded[i] and jetons[i] > 0:
+        if not folded[i]:
             score_result = algorythme.meilleure_main(main + board)
-            # Vérify que le score est valide (au moins un tuple avec un nombre)
             if score_result and len(score_result) > 0:
                 results[i] = score_result
             else:
-                results[i] = (0,)  # Score minimal si la main est invalide
+                results[i] = (0,)
 
     gains = [0] * len(mains)
 
@@ -439,7 +458,7 @@ def showdown(mains, board, pm):
         winners = []
 
         for p in eligibles:
-            if jetons[p] <= 0 or p not in results:
+            if p not in results:
                 continue
             score_val = results[p]
             if best_score is None or score_val > best_score:
@@ -449,7 +468,6 @@ def showdown(mains, board, pm):
                 winners.append(p)
 
         if not winners:
-            # Pas de gagnant valide - donner le pot au premier joueur éligible
             if eligibles:
                 winners = [eligibles[0]]
             else:
@@ -478,26 +496,22 @@ def afficher_resultats_round(ecran, gains):
     if not gains or not ecran:
         return
     
-    # Créer le message des résultats
     messages = []
     gagnants = []
     
     for i, gain in enumerate(gains):
         if gain > 0:
-            messages.append(f"Joueur {i+1}: +{gain} jetons")
+            messages.append(f"{player_names[i]}: +{gain} jetons")
             gagnants.append(i)
     
     if not gagnants:
         messages.append("Aucun gagnant")
     
-    # Afficher pendant 5 secondes (au lieu de 3)
     start_time = pygame.time.get_ticks()
     while pygame.time.get_ticks() - start_time < 5000:
         graphique.dessiner_table(ecran)
         graphique.dessiner_joueurs(ecran, jetons)
         
-        # Afficher les messages de résultats avec un fond
-        # Titre
         titre = graphique.police.render("RÉSULTATS DU ROUND", True, graphique.BLANC)
         titre_rect = pygame.Rect(graphique.LARGEUR//2 - titre.get_width()//2 - 10, 140, 
                                 titre.get_width() + 20, titre.get_height() + 10)
@@ -507,21 +521,19 @@ def afficher_resultats_round(ecran, gains):
         
         y = 200
         for message in messages:
-            color = (255, 215, 0) if "Joueur 6" in message else graphique.BLANC  # Or pour le joueur humain
+            color = (255, 215, 0) if "Joueur 6" in message else graphique.BLANC
             txt = graphique.police.render(message, True, color)
             
-            # Ajouter un fond opaque
             fond_rect = pygame.Rect(graphique.LARGEUR//2 - txt.get_width()//2 - 10, y - 5, 
                                    txt.get_width() + 20, txt.get_height() + 10)
-            pygame.draw.rect(ecran, (0, 0, 0), fond_rect)  # Fond noir opaque
-            pygame.draw.rect(ecran, color, fond_rect, 2)  # Bordure colorée
+            pygame.draw.rect(ecran, (0, 0, 0), fond_rect)
+            pygame.draw.rect(ecran, color, fond_rect, 2)
             
             ecran.blit(txt, (graphique.LARGEUR//2 - txt.get_width()//2, y))
-            y += 50  # Espacement plus grand
+            y += 50 
         
         graphique.rafraichir(ecran)
         
-        # Gérer les événements pour permettre de quitter
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -540,7 +552,12 @@ def game():
     Returns:
         None (modifie les variables globales et l'affichage)
     """
-    global jetons, bouton, round_number, blind_multiplier
+    global jetons, bouton, round_number, blind_multiplier, player_names
+
+    if player_names[0] == "":
+        random_names = random.sample(noms_francais, 5)
+        player_names[:5] = random_names
+        player_names[5] = pseudo
 
     n = len(jetons)
     if n < 2:
@@ -564,12 +581,13 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
-        actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+        actifs = [i for i in range(n) if not pm["folded"][i]]
         if len(actifs) == 1:
             gains = [0] * n
             gains[actifs[0]] = sum(pm["contributions"])
             for i, g in enumerate(gains):
                 jetons[i] += g
+            play_win_sound(gains)
             bouton = (bouton + 1) % n
             round_number += 1
             pygame.time.wait(500)
@@ -579,6 +597,7 @@ def game():
         gains = showdown(mains, board, pm)
         for i, g in enumerate(gains):
             jetons[i] += g
+        play_win_sound(gains)
         bouton = (bouton + 1) % n
         round_number += 1
         pygame.time.wait(800)
@@ -590,7 +609,7 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     if fini:
-        actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+        actifs = [i for i in range(n) if not pm["folded"][i]]
         if len(actifs) == 1:
             gains = [0] * n
             gains[actifs[0]] = sum(pm["contributions"])
@@ -606,6 +625,7 @@ def game():
         for i, g in enumerate(gains):
             jetons[i] += g
         bouton = (bouton + 1) % n
+        play_win_sound(gains)
         round_number += 1
         pygame.time.wait(800)
         return
@@ -622,6 +642,7 @@ def game():
             gains[actifs[0]] = sum(pm["contributions"])
             for i, g in enumerate(gains):
                 jetons[i] += g
+            play_win_sound(gains)
             bouton = (bouton + 1) % n
             round_number += 1
             pygame.time.wait(500)
@@ -642,14 +663,14 @@ def game():
 
     fini, _ = tour_encheres(mains, jetons, pm, board, bouton, small_blind, big_blind)
     
-    actifs = [i for i in range(n) if not pm["folded"][i] and jetons[i] > 0]
+    actifs = [i for i in range(n) if not pm["folded"][i]]
     if len(actifs) == 1:
         gains = [0] * n
         gains[actifs[0]] = sum(pm["contributions"])
         for i, g in enumerate(gains):
             jetons[i] += g
         
-        # Afficher les résultats du round même quand un seul joueur reste
+        play_win_sound(gains)
         afficher_resultats_round(ecran, gains)
     else:
         afficher_showdown(mains, board, pm)
@@ -657,7 +678,7 @@ def game():
         for i, g in enumerate(gains):
             jetons[i] += g
         
-        # Afficher les résultats du round
+        play_win_sound(gains)
         afficher_resultats_round(ecran, gains)
         
     bouton = (bouton + 1) % n
@@ -666,6 +687,7 @@ def game():
 
 
 def Partie():
+    global player_has_died
     try:
         while True:
             for event in pygame.event.get():
@@ -676,8 +698,8 @@ def Partie():
             game()
             clock.tick(60)
             
-            # Vérifier si le joueur humain n'a plus de jetons
             if jetons[5] <= 0:
+                player_has_died = True
                 return "game_over"
     except Exception as e:
         if str(e) == "RETOUR_MENU":
