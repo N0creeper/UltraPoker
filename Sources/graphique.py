@@ -75,6 +75,13 @@ def charger_images():
         images_cartes["table_menu"] = pygame.transform.scale(images_cartes["table_menu"], (LARGEUR, HAUTEUR))
     except pygame.error:
         print("Erreur: Impossible de charger Table_Menu.png")
+    
+    try:
+        logo_path = os.path.join(dossier, "Logo.png")
+        images_cartes["Logo"] = pygame.image.load(logo_path).convert_alpha()
+        images_cartes["Logo"] = pygame.transform.scale(images_cartes["Logo"], (80, 80))
+    except pygame.error:
+        print("Erreur: Impossible de charger Logo.png")
 
 
 def creer_fenetre():
@@ -90,7 +97,24 @@ def creer_fenetre():
     ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
     pygame.display.set_caption("Poker Texas Hold'em")
     charger_images()
+    if "Logo" in images_cartes:
+        pygame.display.set_icon(images_cartes["Logo"])
     return ecran
+
+
+def afficher_logo(ecran):
+    """
+    Affiche le logo du jeu en haut à droite de l'écran.
+    
+    Args:
+        ecran (pygame.Surface): Surface de jeu
+    
+    Returns:
+        None
+    """
+    if "Logo" in images_cartes:
+        logo = images_cartes["Logo"]
+        ecran.blit(logo, (LARGEUR - logo.get_width() - 10, 10))
 
 
 def dessiner_table(ecran):
